@@ -1,0 +1,25 @@
+[    0.000000] Linux version 3.4.39 (root@nihao-H81M-DS2) (gcc version 5.3.1 20160412 (Linaro GCC 5.3-2016.05) ) #1 Thu Jul 2 10:37:24 CST 2020
+
+# uname -a
+Linux X5 3.4.39 #1 Thu Jul 2 10:37:24 CST 2020 armv7l GNU/Linux
+
+# lsmod
+Module                  Size  Used by    Tainted: G
+adc                     1488  0
+hgic_sdio               4887  0
+hgicf                  50653  1 hgic_sdio
+vfe_v4l2             1389001  1
+ar130                   3790  0
+vfe_subdev              4151  2 vfe_v4l2,ar130
+vfe_os                  3505  2 vfe_v4l2,vfe_subdev
+cci                    18930  2 vfe_v4l2,ar130
+videobuf_dma_contig     3905  1 vfe_v4l2
+videobuf_core          15369  2 vfe_v4l2,videobuf_dma_contig
+spiupdate               4790  0
+keypad_xw12a            3997  0
+idcard                  4168  0
+8188fu               1454294  0
+frame                   7923  0
+asix                   12398  0
+
+
