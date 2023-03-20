@@ -322,7 +322,7 @@ void *thread_call_button(void *vargp)
         // GPIO is read as 0 when the button is pressed
         if (read_value == 0)
         {
-            ret = mqtt_send("{\"state\": \"pushed\"}");
+            ret = mqtt_send("{\"state\": \"pushed\"}", MQTT_TOPIC);
 
             gpio_set_value(70, "0");
 

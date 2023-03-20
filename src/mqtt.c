@@ -23,6 +23,8 @@ static Network n;
 static MQTTClient c;
 static pthread_mutex_t yield_lock;
 
+static void *buf_send, *buf_recv;
+
 void cfinish(int sig)
 {
     signal(SIGINT, NULL);
@@ -41,12 +43,14 @@ void messageArrived(MessageData *md)
         printf("%.*s%s", (int)message->payloadlen, (char *)message->payload, opts.delimiter);
 }
 
-int mqtt_send(char *payload)
+int mqtt_send(char *payload, char *topic)
 {
     int rc = 0;
     MQTTMessage message;
 
     memset(&message, 0x00, sizeof(MQTTMessage));
+
+    printf("Sending %s to %s ... ", payload, topic);
 
     message.qos = QOS2;
     message.retained = 0;
@@ -55,10 +59,12 @@ int mqtt_send(char *payload)
 
     pthread_mutex_lock(&yield_lock);
 
-    rc = MQTTPublish(&c, MQTT_TOPIC, &message);
+    rc = MQTTPublish(&c, topic, &message);
 
     // Wait for QoS messages to be exchanged
     // MQTTYield(&c, 1000);
+
+    printf("rtn = %d\n", rc);
 
     pthread_mutex_unlock(&yield_lock);
 
@@ -67,46 +73,23 @@ int mqtt_send(char *payload)
 
 int mqtt_register_home_assistant()
 {
-    int rc = 0;
-    MQTTMessage message;
+    int rc;
+    char buf[512];
 
-    memset(&message, 0x00, sizeof(MQTTMessage));
+    sprintf(buf, "{\"automation_type\":\"trigger\",\"topic\":\"%s\",\"payload\":\"pushed\",\"type\":\"button_short_press\",\"subtype\":\"button_1\",\"device\":{\"name\":\"Timbre\",\"model\":\"83225EPC-WIFI\"}}", MQTT_TOPIC);
 
-    char *payload = "{\
-        \"automation_type\":\"trigger\",\
-        \"topic\":\"" MQTT_TOPIC "\",\
-        \"payload\":\"pushed\",\
-        \"type\":\"button_short_press\",\
-        \"subtype\":\"button_1\",\
-        \"device\":{\
-            \"model\":\"83225EPC-WIFI\"\
-        }\
-    }";
-
-    message.qos = QOS2;
-    message.retained = 0;
-    message.payload = payload;
-    message.payloadlen = strlen(payload);
-
-    pthread_mutex_lock(&yield_lock);
-
-    rc = MQTTPublish(&c, MQTT_TOPIC, &message);
-
-    // Wait for QoS messages to be exchanged
-    // MQTTYield(&c, 1000);
-
-    pthread_mutex_unlock(&yield_lock);
-
+    rc = mqtt_send(buf, "homeassistant/device_automation/bk87225/call_button/config");
     return rc;
 }
 
 int setup_mqtt()
 {
     int rc = 0;
-    unsigned char buf[100];
-    unsigned char readbuf[100];
 
     memset(&opts, 0x00, sizeof(struct opts_struct));
+
+    buf_recv = malloc(BUFFER_SIZE);
+    buf_send = malloc(BUFFER_SIZE);
 
     opts.clientid = "bk87225-subscriber";
     opts.delimiter = "\n";
@@ -122,7 +105,7 @@ int setup_mqtt()
     NetworkInit(&n);
     NetworkConnect(&n, opts.host, opts.port);
 
-    MQTTClientInit(&c, &n, 1000, buf, 100, readbuf, 100);
+    MQTTClientInit(&c, &n, 1000, buf_send, BUFFER_SIZE, buf_recv, BUFFER_SIZE);
 
     MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
     data.willFlag = 0;
@@ -137,6 +120,11 @@ int setup_mqtt()
 
     rc = MQTTConnect(&c, &data);
     printf("Connected %d\n", rc);
+
+    mqtt_register_home_assistant();
+
+    // Wait a bit to exchange QOS messages
+    MQTTYield(&c, 1000);
 
     printf("Subscribing to %s\n", MQTT_TOPIC);
     rc = MQTTSubscribe(&c, MQTT_TOPIC, opts.qos, messageArrived);
