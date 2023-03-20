@@ -1,5 +1,7 @@
 #include <fcntl.h>
+#include <memory.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -7,6 +9,10 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
+#include <MQTTClient.h>
+
+#include "include/gpio.h"
+#include "include/mqtt.h"
 #include "include/libAudioIn.h"
 #include "include/libVideoEnc.h"
 
@@ -257,6 +263,84 @@ void *thread_audio(void *vargp)
     return 0;
 }
 
+void startup_animation()
+{
+    gpio_set_value(70, "1");
+    usleep(500000);
+    gpio_set_value(70, "0");
+    usleep(500000);
+
+    gpio_set_value(36, "1");
+    usleep(500000);
+    gpio_set_value(36, "0");
+    usleep(500000);
+
+    gpio_set_value(200, "1");
+    usleep(500000);
+    gpio_set_value(200, "0");
+    usleep(500000);
+}
+
+void button_push_animation()
+{
+    gpio_set_value(72, "1");
+    usleep(500000);
+    gpio_set_value(72, "0");
+    usleep(500000);
+
+    gpio_set_value(72, "1");
+    usleep(500000);
+    gpio_set_value(72, "0");
+    usleep(500000);
+
+    gpio_set_value(72, "1");
+    usleep(500000);
+    gpio_set_value(72, "0");
+    usleep(500000);
+
+    gpio_set_value(72, "1");
+    usleep(500000);
+    gpio_set_value(72, "0");
+    usleep(500000);
+
+    gpio_set_value(72, "1");
+    usleep(500000);
+    gpio_set_value(72, "0");
+    usleep(500000);
+}
+
+void *thread_call_button(void *vargp)
+{
+    int read_value, ret;
+
+    while (1)
+    {
+        gpio_set_value(70, "1");
+
+        read_value = gpio_poll_value(44);
+
+        // GPIO is read as 0 when the button is pressed
+        if (read_value == 0)
+        {
+            ret = mqtt_send("{\"state\": \"pushed\"}");
+
+            gpio_set_value(70, "0");
+
+            // this will delay the next event
+            button_push_animation();
+        }
+    }
+
+    return 0;
+}
+
+void *thread_mqtt(void *vargp)
+{
+    setup_mqtt();
+
+    return 0;
+}
+
 int main()
 {
     int ret;
@@ -265,6 +349,8 @@ int main()
     pthread_t thread_id_watchdog;
     pthread_t thread_id_video;
     pthread_t thread_id_audio;
+    pthread_t thread_id_call_button;
+    pthread_t thread_id_mqtt;
 
     s_watchdog_fd = open("/dev/watchdog", O_RDWR);
 
@@ -283,8 +369,16 @@ int main()
     }
 
     pthread_create(&thread_id_watchdog, NULL, thread_watchdog, NULL);
+
+    setup_gpio();
+    startup_animation();
+
+    sleep(3);
+
     pthread_create(&thread_id_video, NULL, thread_video, NULL);
     pthread_create(&thread_id_audio, NULL, thread_audio, NULL);
+    pthread_create(&thread_id_call_button, NULL, thread_call_button, NULL);
+    pthread_create(&thread_id_mqtt, NULL, thread_mqtt, NULL);
 
     while (1)
     {
