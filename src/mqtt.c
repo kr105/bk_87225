@@ -77,8 +77,8 @@ int mqtt_register_home_assistant()
     char buf[512];
 
     sprintf(buf, "{\"automation_type\":\"trigger\",\"topic\":\"%s\",\"payload\":\"pushed\",\"type\":\"button_short_press\",\"subtype\":\"button_1\",\"device\":{\"name\":\"Timbre\",\"model\":\"83225EPC-WIFI\"}}", MQTT_TOPIC);
-
     rc = mqtt_send(buf, "homeassistant/device_automation/bk87225/call_button/config");
+
     return rc;
 }
 
@@ -121,7 +121,10 @@ int setup_mqtt()
     rc = MQTTConnect(&c, &data);
     printf("Connected %d\n", rc);
 
+    printf("Registering in Home Assistant\n");
     mqtt_register_home_assistant();
+
+    printf("Waiting a bit ...\n");
 
     // Wait a bit to exchange QOS messages
     MQTTYield(&c, 1000);
@@ -138,6 +141,8 @@ int setup_mqtt()
         {
             MQTTYield(&c, 10);
             pthread_mutex_unlock(&yield_lock);
+
+            usleep(500000);
         }
     }
 
@@ -145,6 +150,9 @@ int setup_mqtt()
 
     MQTTDisconnect(&c);
     NetworkDisconnect(&n);
+
+    free(buf_recv);
+    free(buf_send);
 
     return 1;
 }

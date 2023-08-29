@@ -1,6 +1,7 @@
 #include <fcntl.h>
 #include <memory.h>
 #include <pthread.h>
+#include <sched.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -322,7 +323,11 @@ void *thread_call_button(void *vargp)
         // GPIO is read as 0 when the button is pressed
         if (read_value == 0)
         {
+            printf("call button pressed\n");
+
             ret = mqtt_send("{\"state\": \"pushed\"}", MQTT_TOPIC);
+
+            printf("mqtt_send = %d\n", ret);
 
             gpio_set_value(70, "0");
 
@@ -379,6 +384,12 @@ int main()
     pthread_create(&thread_id_audio, NULL, thread_audio, NULL);
     pthread_create(&thread_id_call_button, NULL, thread_call_button, NULL);
     pthread_create(&thread_id_mqtt, NULL, thread_mqtt, NULL);
+
+    // Give max priority to the MQTT and call_button threads
+    struct sched_param param;
+    param.sched_priority = sched_get_priority_max(SCHED_FIFO);
+    pthread_setschedparam(thread_id_mqtt, SCHED_FIFO, &param);
+    pthread_setschedparam(thread_id_call_button, SCHED_FIFO, &param);
 
     while (1)
     {
