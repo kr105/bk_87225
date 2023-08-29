@@ -24,6 +24,8 @@ It has a very good hardware configuration and good enough build quality, but it 
 - Electronic door-lock connection.
 
 This repo is not meant as a public release usable project, at least not yet. At some point in the future, I will upload proper flashing instructions and add customization and other features. For now, you can use it as a reference or anything else (MIT Licensed).
+
+Most of the hardware interfacing code has been reverse engineered from the original firmware shipped with this device and looking into the Tuya SDK, so many API/Libraries calls are not fully documented or only some parameters are understood and others are just there so it works. Further info will be added once it is available.
  
 #### GPIO info
  
